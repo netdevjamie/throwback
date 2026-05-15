@@ -9,7 +9,6 @@ Note: Strava removed DELETE from the public API, so the test
 activity must be deleted manually from the web UI after running.
 """
 
-import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -72,10 +71,10 @@ def main():
 
     print("Polling until processed...")
     for i in range(60):
+        uploader.poll()
         if uploader.is_complete:
             break
         time.sleep(1)
-        uploader.poll()
         print(f"  [{i+1}s] status: {uploader.status}", end="\r")
 
     print()
@@ -95,7 +94,7 @@ def main():
     print(f"  https://www.strava.com/activities/{activity_id}")
     print("  (Edit -> Delete Activity)")
 
-    os.remove(GPX_PATH)
+    GPX_PATH.unlink()
     print("\nSmoke test PASSED. Pipeline is ready for a real bulk run.")
 
 

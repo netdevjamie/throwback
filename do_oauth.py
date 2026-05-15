@@ -8,6 +8,7 @@ Run once after creating the Strava app:
 """
 
 import os
+import secrets
 import sys
 import threading
 import webbrowser
@@ -29,6 +30,8 @@ if not CLIENT_ID or not CLIENT_SECRET:
 
 REDIRECT_URI = "http://localhost:8000/callback"
 SCOPES = ["activity:write", "activity:read_all"]
+CALLBACK_TIMEOUT_SECONDS = 600
+EXPECTED_STATE = secrets.token_urlsafe(16)
 
 captured_code = {"value": None}
 captured_event = threading.Event()
@@ -38,12 +41,15 @@ class CallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         qs = parse_qs(urlparse(self.path).query)
         code = qs.get("code", [None])[0]
+        state = qs.get("state", [None])[0]
         error = qs.get("error", [None])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.end_headers()
         if error:
             self.wfile.write(f"<h1>Authorization failed: {error}</h1>".encode())
+        elif state != EXPECTED_STATE:
+            self.wfile.write(b"<h1>State mismatch. Request rejected.</h1>")
         elif code:
             captured_code["value"] = code
             captured_event.set()
@@ -61,6 +67,7 @@ def main():
         client_id=int(CLIENT_ID),
         redirect_uri=REDIRECT_URI,
         scope=SCOPES,
+        state=EXPECTED_STATE,
     )
 
     server = HTTPServer(("localhost", 8000), CallbackHandler)
@@ -70,7 +77,9 @@ def main():
     webbrowser.open(auth_url)
 
     print("Waiting for authorization callback on http://localhost:8000/callback ...")
-    captured_event.wait()
+    if not captured_event.wait(timeout=CALLBACK_TIMEOUT_SECONDS):
+        server.shutdown()
+        sys.exit(f"Timed out after {CALLBACK_TIMEOUT_SECONDS}s waiting for browser authorization.")
     server.shutdown()
 
     print("Got authorization code. Exchanging for tokens...")

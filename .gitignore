@@ -27,6 +27,9 @@ _smoke_test.*
 uploads_log.jsonl
 *.log
 
+# Tooling state
+.relay.yaml
+
 # OS / editor
 .DS_Store
 Thumbs.db

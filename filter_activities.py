@@ -11,8 +11,8 @@ Usage:
 """
 
 import argparse
+import os
 import shutil
-import sys
 from collections import Counter
 from pathlib import Path
 
@@ -34,14 +34,14 @@ def main():
     ap.add_argument("staging", help="Directory of raw FIT files from Garmin export")
     ap.add_argument("out", help="Output directory for activity-only FIT files")
     ap.add_argument("--copy", action="store_true",
-                    help="Copy files instead of symlinking (default: symlink)")
+                    help="Copy files instead of symlinking (default: relative symlink)")
     args = ap.parse_args()
 
     staging = Path(args.staging).expanduser()
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
 
-    fits = sorted(staging.glob("*.fit"))
+    fits = sorted(p for p in staging.iterdir() if p.suffix.lower() == ".fit")
     print(f"Scanning {len(fits)} files in {staging}...")
 
     types = Counter()
@@ -70,7 +70,9 @@ def main():
         if args.copy:
             shutil.copy2(src, dst)
         else:
-            dst.symlink_to(src.resolve())
+            # Relative symlink so moving the staging tree doesn't break links.
+            rel = Path(os.path.relpath(src.resolve(), dst.parent.resolve()))
+            dst.symlink_to(rel)
 
     print(f"Done. {len(activities)} files ready in {out}")
 

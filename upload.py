@@ -26,8 +26,12 @@ from stravalib.exc import ActivityUploadFailed, RateLimitExceeded
 from auth import get_client
 
 LOG_PATH = Path(__file__).parent / "uploads_log.jsonl"
+# Compound suffixes here are checked with str.endswith, not Path.suffix.
 EXTS = {".fit", ".fit.gz", ".tcx", ".tcx.gz", ".gpx", ".gpx.gz"}
-SLEEP_BETWEEN_UPLOADS = 5  # 1 req per ~4.5s = 200/15min budget; 5s leaves headroom
+# Each upload also costs 1-3 poll requests + an auth refresh on startup;
+# 5s outer pacing keeps the total well under Strava's 200 req / 15 min
+# limit in practice. RateLimitExceeded triggers a 15-min backoff anyway.
+SLEEP_BETWEEN_UPLOADS = 5
 
 
 def already_done() -> set[str]:
@@ -63,10 +67,10 @@ def upload_one(client, path: Path) -> dict:
         with open(path, "rb") as f:
             uploader = client.upload_activity(activity_file=f, data_type=data_type)
         for _ in range(60):
+            uploader.poll()
             if uploader.is_complete:
                 break
             time.sleep(1)
-            uploader.poll()
         if uploader.activity_id:
             return {"status": "uploaded", "activity_id": uploader.activity_id}
         return {"status": "pending", "note": "did not complete in 60s"}
