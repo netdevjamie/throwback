@@ -1,0 +1,35 @@
+# Secrets / credentials
+.env
+.env.*
+!.env.template
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Local data — never commit anyone's activity files
+fit_staging/
+activities_to_upload/
+*.fit
+*.fit.gz
+*.tcx
+*.gpx
+*.zip
+Garmin_Download.zip
+_smoke_test.*
+
+# Upload logs (contain local file paths)
+uploads_log.jsonl
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
